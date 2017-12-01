@@ -213,3 +213,15 @@ mod tests {
         assert_eq!(query.test(Arc::new(Mutex::new(vec!((TypeId::of::<C>(), &mut 1))))), true);
     }
 }
+
+#[cfg(all(feature = "nightly", test))]
+mod benches {
+    extern crate test;
+
+    use self::test::Bencher;
+
+    #[bench]
+    fn bench_with_not(b: &mut Bencher) {
+        b.iter(|| 2 + 2);
+    }
+}
