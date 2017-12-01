@@ -1,8 +1,9 @@
 use std::sync::{Mutex, RwLock, Arc};
 use std::collections::VecDeque;
 
-use super::{Entity, Components};
-use super::entities::EntityEditor;
+use super::Entity;
+use super::entities::{EntityEditor, Components};
+use super::query::QueryBuilder;
 
 pub struct World {
     entities: RwLock<Vec<Components>>,
@@ -45,5 +46,9 @@ impl World {
         } else {
             None
         }
+    }
+
+    pub fn filter_entities(&self) -> QueryBuilder {
+        QueryBuilder::new(self)
     }
 }
