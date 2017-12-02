@@ -9,26 +9,36 @@ pub trait Condition {
 pub struct Matchers;
 
 impl Matchers {
+    /// Tests whether an entity has a component of type `T`
     pub fn with<T>() -> QueryBuilder where T: Any {
         QueryBuilder::new().with::<T>()
     }
 
+    /// Tests whether an entity does not have a component of type `T`
     pub fn without<T>() -> QueryBuilder where T: Any {
         QueryBuilder::new().without::<T>()
     }
 
+    /// True if the left-hand side of this expression, and `condition` 
+    /// both test as true.
     pub fn and<T>(condition: T) -> QueryBuilder where T: Into<Box<Condition>> {
         QueryBuilder::new().and(condition)
     }
 
+    /// True if the left-hand side of this expression, and `condition` 
+    /// both test as false.
     pub fn and_not<T>(condition: T) -> QueryBuilder where T: Into<Box<Condition>> {
         QueryBuilder::new().and_not(condition)
     }
 
+    /// True if either the left-hand side of this expression, or `condition` 
+    /// test as true.
     pub fn or<T>(condition: T) -> QueryBuilder where T: Into<Box<Condition>> {
         QueryBuilder::new().or(condition)
     }
 
+    /// True if either the left-hand side of this expression, or `condition` 
+    /// test as false.
     pub fn or_not<T>(condition: T) -> QueryBuilder where T: Into<Box<Condition>> {
         QueryBuilder::new().or_not(condition)
     }
@@ -45,6 +55,7 @@ impl <'a> QueryBuilder {
         }
     }
 
+    /// Identical to [`Matchers.with`](struct.Matchers.html#method.with)
     pub fn with<T>(mut self) -> QueryBuilder where T: Any {
         self.conditions.push(Box::new(IsCondition { 
             ty: TypeId::of::<T>() 
@@ -53,6 +64,7 @@ impl <'a> QueryBuilder {
         self
     }
 
+    /// Identical to [`Matchers.without`](struct.Matchers.html#method.without)
     pub fn without<T>(mut self) -> QueryBuilder where T: Any {
         self.conditions.push(Box::new(IsNotCondition {
             ty: TypeId::of::<T>()
@@ -61,6 +73,7 @@ impl <'a> QueryBuilder {
         self
     }
 
+    /// Identical to [`Matchers.and`](struct.Matchers.html#method.and)
     pub fn and<T>(self, condition: T) -> QueryBuilder where T: Into<Box<Condition>> {
         let mut new_builder = QueryBuilder::new();
         new_builder.conditions.push(Box::new(AndCondition {
@@ -71,6 +84,7 @@ impl <'a> QueryBuilder {
         new_builder
     }
 
+    /// Identical to [`Matchers.and_not`](struct.Matchers.html#method.and_not)
     pub fn and_not<T>(self, condition: T) -> QueryBuilder where T: Into<Box<Condition>> {
         let mut new_builder = QueryBuilder::new();
         new_builder.conditions.push(Box::new(AndCondition {
@@ -81,6 +95,7 @@ impl <'a> QueryBuilder {
         new_builder
     }
 
+    /// Identical to [`Matchers.or`](struct.Matchers.html#method.or)
     pub fn or<T>(self, condition: T) -> QueryBuilder where T: Into<Box<Condition>> {
         let mut new_builder = QueryBuilder::new();
         new_builder.conditions.push(Box::new(OrCondition {
@@ -91,6 +106,7 @@ impl <'a> QueryBuilder {
         new_builder
     }
 
+    /// Identical to [`Matchers.or_not`](struct.Matchers.html#method.or_not)
     pub fn or_not<T>(self, condition: T) -> QueryBuilder where T: Into<Box<Condition>> {
         let mut new_builder = QueryBuilder::new();
         new_builder.conditions.push(Box::new(OrCondition {
@@ -101,6 +117,7 @@ impl <'a> QueryBuilder {
         new_builder
     }
 
+    /// Consumes this `QueryBuilder` and returns a finalized [`EntityQuery`](struct.EntityQuery.html)
     pub fn build(self) -> Query {
         Query {
             conditions: self.conditions
@@ -170,6 +187,8 @@ impl <'query> Iterator for QueryRunnerIter<'query> {
     }
 }
 
+/// Represents a set of rules for filtering entities before
+/// they are passed into a system as part of a world tick
 pub struct Query {
     conditions: Vec<Box<Condition>>
 }
