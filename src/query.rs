@@ -1,4 +1,4 @@
-use super::{World, Entity};
+use super::Entity;
 use super::entities::Component;
 use std::any::{Any, TypeId};
 
@@ -101,7 +101,7 @@ impl <'a> QueryBuilder {
         new_builder
     }
 
-    pub(crate) fn build(self) -> Query {
+    pub fn build(self) -> Query {
         Query {
             conditions: self.conditions
         }
@@ -114,45 +114,45 @@ impl Into<Box<Condition>> for QueryBuilder {
     }
 }
 
-pub struct QueryRunner<'a> {
-    world: &'a World,
-    query: Query
+pub struct QueryRunner<'ents, 'query> {
+    ents: &'ents [Vec<Component>],
+    query: &'query Query
 }
 
-impl <'a> QueryRunner<'a> {
-    pub fn new(world: &'a World, query: Query) -> QueryRunner<'a> {
+impl <'ents, 'query> QueryRunner<'ents, 'query> {
+    pub fn new(ents: &'ents [Vec<Component>], query: &'query Query) -> QueryRunner<'ents, 'query> {
         QueryRunner {
-            world,
+            ents,
             query
         }
     }
 }
 
-impl <'a> IntoIterator for QueryRunner<'a> {
+impl <'ents, 'query> IntoIterator for QueryRunner<'ents, 'query> {
     type Item = Entity;
-    type IntoIter = QueryRunnerIter<'a>;
+    type IntoIter = QueryRunnerIter<'ents, 'query>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let world = self.world;
+        let ents = self.ents;
         QueryRunnerIter {
             query: self.query,
-            world: world,
+            ents: ents,
             index: 0
         }
     }
 }
 
-pub struct QueryRunnerIter<'a> {
-    world: &'a World,
-    query: Query,
+pub struct QueryRunnerIter<'ents, 'query> {
+    ents: &'ents [Vec<Component>],
+    query: &'query Query,
     index: usize
 }
 
-impl <'a> Iterator for QueryRunnerIter<'a> {
+impl <'ents, 'query> Iterator for QueryRunnerIter<'ents, 'query> {
     type Item = Entity;
     fn next(&mut self) -> Option<Self::Item> {
-        for idx in self.index..self.world.entities.len() {
-            if let Some(components) = self.world.entities.get(idx) {
+        for idx in self.index..self.ents.len() {
+            if let Some(components) = self.ents.get(idx) {
                 if self.query.test(&*components) {
                     self.index = idx + 1;
 
@@ -169,6 +169,11 @@ pub struct Query {
     conditions: Vec<Box<Condition>>
 }
 
+impl Query {
+    pub fn new(builder: QueryBuilder) -> Query {
+        builder.build()
+    }
+}
 
 impl Condition for Query {
     fn test(&self, components: &[Component]) -> bool {

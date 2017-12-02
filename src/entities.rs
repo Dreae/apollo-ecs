@@ -17,8 +17,10 @@ impl <'a> EntityEditor<'a> {
         }
     }
 
-    pub fn add<T>(&mut self, component: T) where T: Any {
+    pub fn add<T>(self, component: T) -> EntityEditor<'a> where T: Any {
         self.components.push((TypeId::of::<T>(), Box::into_raw(Box::new(component))));
+        
+        self
     }
 
     pub fn has<T>(&self) -> bool where T: Any {
@@ -62,7 +64,7 @@ mod test {
 
         let mut comps = Vec::new();
         {
-            let mut editor = EntityEditor::new(1, &mut comps);
+            let editor = EntityEditor::new(1, &mut comps);
             editor.add(A);
         }
         

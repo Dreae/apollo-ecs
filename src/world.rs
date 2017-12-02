@@ -1,9 +1,12 @@
 use super::Entity;
 use super::entities::{EntityEditor, Components};
-use super::query::{QueryBuilder, QueryRunner};
+use super::query::{Query, QueryRunner};
+use super::systems::IterativeSystem;
+use std::ops::DerefMut;
 
 pub struct World {
     pub(crate) entities: Vec<Components>,
+    iterative_systems: Vec<(Box<IterativeSystem>, Query)>
 }
 
 impl World {
@@ -14,8 +17,13 @@ impl World {
     pub fn with_capacity(capacity: usize) -> World {
         World {
             entities: Vec::with_capacity(capacity),
+            iterative_systems: Vec::new()
         }
     }
+
+    pub fn register_iterative_system<T>(&mut self, system: T) where T: IterativeSystem + 'static {
+        self.iterative_systems.push((Box::new(system), T::get_query()));
+    } 
 
     pub fn create_entity(&mut self) -> Entity {
         self.entities.push(Vec::with_capacity(12));
@@ -31,7 +39,15 @@ impl World {
         }
     }
 
-    pub fn filter_entities(&mut self, builder: QueryBuilder) -> QueryRunner {
-        QueryRunner::new(self, builder.build())
+    pub fn filter_entities<'a, 'q>(&'a mut self, query: &'q Query) -> QueryRunner<'a, 'q> {
+        QueryRunner::new(&self.entities, query)
+    }
+
+    pub fn process(&mut self) {
+        for sys in self.iterative_systems.iter_mut() {
+            for ent in QueryRunner::new(&self.entities, &sys.1) {
+                sys.0.deref_mut().process(ent);
+            }
+        }
     }
 }

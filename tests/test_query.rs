@@ -1,6 +1,6 @@
 extern crate apollo_ecs;
 
-use apollo_ecs::{World, Matchers};
+use apollo_ecs::{World, Matchers, EntityQuery};
 
 #[test]
 fn test_query_iter() {
@@ -20,13 +20,13 @@ fn test_query_iter() {
     world.edit(entity).unwrap().add(B);
 
     let mut i = 0;
-    for _ in world.filter_entities(Matchers::with::<A>().with::<B>()) {
+    for _ in world.filter_entities(&EntityQuery::new(Matchers::with::<A>().with::<B>())) {
         i += 1;
     }
     assert_eq!(i, 1);
 
     i = 0;
-    for _ in world.filter_entities(Matchers::with::<A>().or(Matchers::with::<B>())) {
+    for _ in world.filter_entities(&EntityQuery::new(Matchers::with::<A>().or(Matchers::with::<B>()))) {
         i += 1;
     }
     assert_eq!(i, 2);
