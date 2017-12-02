@@ -5,7 +5,8 @@ authors = ["Dreae <dreae@dreae.onl>"]
 
 [dependencies]
 cpuprofiler = { version = "0.0.3", optional = true }
+rand = { version = "0.3", optional = true }
 
 [features]
-nightly = []
+nightly = ["rand"]
 profiler = ["cpuprofiler"]

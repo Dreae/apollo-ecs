@@ -43,11 +43,20 @@ impl World {
         QueryRunner::new(&self.entities, query)
     }
 
+    // TODO: Performance
     pub fn process(&mut self) {
+        let mut matched_ents = Vec::with_capacity(self.entities.len());
         for sys in self.iterative_systems.iter_mut() {
             for ent in QueryRunner::new(&self.entities, &sys.1) {
-                sys.0.deref_mut().process(ent);
+                matched_ents.push(ent);
             }
+
+            for ent in matched_ents.iter() {
+                sys.0.deref_mut().process(EntityEditor::new(*ent, self.entities.get_mut(*ent).unwrap()));
+            
+            }
+
+            matched_ents.truncate(0);
         }
     }
 }

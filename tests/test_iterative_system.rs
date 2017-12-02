@@ -1,6 +1,6 @@
 extern crate apollo_ecs;
 
-use apollo_ecs::{Entity, EntityQuery, World, Matchers};
+use apollo_ecs::{EntityEditor, EntityQuery, World, Matchers};
 use apollo_ecs::systems::IterativeSystem;
 
 struct TestSystem;
@@ -16,11 +16,10 @@ impl IterativeSystem for TestSystem {
         EntityQuery::new(Matchers::with::<A>().with::<B>().and(Matchers::without::<C>()))
     }
 
-    fn process(&mut self, ent: Entity) {
+    fn process(&mut self, _ent: EntityEditor) {
         unsafe {
             MATCHED += 1;
         }
-        println!("Got ent {}", ent);
     }
 }
 

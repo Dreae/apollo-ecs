@@ -1,6 +1,7 @@
-use super::{Entity, EntityQuery};
+use super::{EntityEditor, EntityQuery};
 
 pub trait IterativeSystem {
     fn get_query() -> EntityQuery where Self: Sized;
-    fn process(&mut self, ent: Entity);
+    // TODO: Shound't take an EntityEditor
+    fn process(&mut self, ent: EntityEditor);
 }

@@ -34,12 +34,12 @@ impl <'a> EntityEditor<'a> {
         false
     }
 
-    pub fn get<T>(&self) -> Option<&T> where T: Any {
+    pub fn get<T>(&self) -> Option<&mut T> where T: Any {
         let ty = TypeId::of::<T>();
         for &(comp_ty, ptr) in self.components.iter() {
             if comp_ty == ty {
                 unsafe {
-                    return (*ptr).downcast_ref();
+                    return (*ptr).downcast_mut();
                 }
             }
         }

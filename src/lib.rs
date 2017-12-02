@@ -9,3 +9,4 @@ pub type Entity = usize;
 
 pub use world::World;
 pub use query::{Matchers, Query as EntityQuery};
+pub use entities::EntityEditor;
