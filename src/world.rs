@@ -31,6 +31,18 @@ impl World {
         self.entities.len() - 1
     }
 
+    pub fn drop_entity(&mut self, ent: Entity) {
+        if ent < self.entities.len() {
+            let components = self.entities.remove(ent);
+            for comp in components {
+                unsafe {
+                    // Drop component memory
+                    Box::from_raw(comp.1);
+                }
+            }
+        }
+    }
+
     pub fn edit(&mut self, ent: Entity) -> Option<EntityEditor> {
         if let Some(components) = self.entities.get_mut(ent) {
             Some(EntityEditor::new(ent, components))
@@ -39,24 +51,15 @@ impl World {
         }
     }
 
-    pub fn filter_entities<'a, 'q>(&'a mut self, query: &'q Query) -> QueryRunner<'a, 'q> {
-        QueryRunner::new(&self.entities, query)
+    pub fn filter_entities<'a, 'q>(&'a mut self, query: &'q Query) -> QueryRunner<'q> {
+        QueryRunner::new(self.entities.as_ptr(), self.entities.len(), query)
     }
 
-    // TODO: Performance
     pub fn process(&mut self) {
-        let mut matched_ents = Vec::with_capacity(self.entities.len());
         for sys in self.iterative_systems.iter_mut() {
-            for ent in QueryRunner::new(&self.entities, &sys.1) {
-                matched_ents.push(ent);
+            for ent in QueryRunner::new(self.entities.as_ptr(), self.entities.len(), &sys.1) {
+                sys.0.deref_mut().process(EntityEditor::new(ent, self.entities.get_mut(ent).unwrap()));
             }
-
-            for ent in matched_ents.iter() {
-                sys.0.deref_mut().process(EntityEditor::new(*ent, self.entities.get_mut(*ent).unwrap()));
-            
-            }
-
-            matched_ents.truncate(0);
         }
     }
 }

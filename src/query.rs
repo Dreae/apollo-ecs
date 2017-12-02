@@ -114,51 +114,56 @@ impl Into<Box<Condition>> for QueryBuilder {
     }
 }
 
-pub struct QueryRunner<'ents, 'query> {
-    ents: &'ents [Vec<Component>],
-    query: &'query Query
+pub struct QueryRunner<'query> {
+    ents: *const Vec<Component>,
+    query: &'query Query,
+    len: usize
 }
 
-impl <'ents, 'query> QueryRunner<'ents, 'query> {
-    pub fn new(ents: &'ents [Vec<Component>], query: &'query Query) -> QueryRunner<'ents, 'query> {
+impl <'query> QueryRunner<'query> {
+    pub fn new(ents: *const Vec<Component>, len: usize, query: &'query Query) -> QueryRunner<'query> {
         QueryRunner {
             ents,
-            query
+            query,
+            len
         }
     }
 }
 
-impl <'ents, 'query> IntoIterator for QueryRunner<'ents, 'query> {
+impl <'query> IntoIterator for QueryRunner<'query> {
     type Item = Entity;
-    type IntoIter = QueryRunnerIter<'ents, 'query>;
+    type IntoIter = QueryRunnerIter<'query>;
 
     fn into_iter(self) -> Self::IntoIter {
         let ents = self.ents;
         QueryRunnerIter {
             query: self.query,
+            len: self.len,
             ents: ents,
             index: 0
         }
     }
 }
 
-pub struct QueryRunnerIter<'ents, 'query> {
-    ents: &'ents [Vec<Component>],
+pub struct QueryRunnerIter<'query> {
+    ents: *const Vec<Component>,
     query: &'query Query,
+    len: usize,
     index: usize
 }
 
-impl <'ents, 'query> Iterator for QueryRunnerIter<'ents, 'query> {
+impl <'query> Iterator for QueryRunnerIter<'query> {
     type Item = Entity;
     fn next(&mut self) -> Option<Self::Item> {
-        for idx in self.index..self.ents.len() {
-            if let Some(components) = self.ents.get(idx) {
-                if self.query.test(&*components) {
-                    self.index = idx + 1;
+        for idx in self.index..self.len {
+            let components = unsafe { &*self.ents.offset(idx as isize) };
 
-                    return Some(idx)
-                }
+            if self.query.test(components) {
+                self.index = idx + 1;
+
+                return Some(idx)
             }
+            
         }
         
         None
