@@ -1,33 +1,29 @@
 use super::Entity;
 use std::any::{Any, TypeId};
-use std::sync::{Arc, Mutex};
 
-pub type Components = Arc<Mutex<Vec<Component>>>;
+pub type Components = Vec<Component>;
 pub type Component = (TypeId, *mut Any);
 
-pub struct EntityEditor {
+pub struct EntityEditor<'a> {
     ent: Entity,
-    components: Components
+    components: &'a mut Components
 }
 
-impl EntityEditor {
-    pub fn new(ent: Entity, components: Components) -> EntityEditor {
+impl <'a> EntityEditor<'a> {
+    pub fn new(ent: Entity, components: &mut Components) -> EntityEditor {
         EntityEditor {
             ent,
             components
         }
     }
 
-    pub fn add<T>(&self, component: T) where T: Any {
-        let mut components = self.components.lock().unwrap();
-
-        components.push((TypeId::of::<T>(), Box::into_raw(Box::new(component))));
+    pub fn add<T>(&mut self, component: T) where T: Any {
+        self.components.push((TypeId::of::<T>(), Box::into_raw(Box::new(component))));
     }
 
     pub fn has<T>(&self) -> bool where T: Any {
         let ty = TypeId::of::<T>();
-        let components = self.components.lock().unwrap();
-        for &(comp_ty, _) in components.iter() {
+        for &(comp_ty, _) in self.components.iter() {
             if comp_ty == ty {
                 return true;
             }
@@ -38,8 +34,7 @@ impl EntityEditor {
 
     pub fn get<T>(&self) -> Option<&T> where T: Any {
         let ty = TypeId::of::<T>();
-        let components = self.components.lock().unwrap();
-        for &(comp_ty, ptr) in components.iter() {
+        for &(comp_ty, ptr) in self.components.iter() {
             if comp_ty == ty {
                 unsafe {
                     return (*ptr).downcast_ref();
@@ -51,8 +46,26 @@ impl EntityEditor {
     }
 }
 
-impl Into<Entity> for EntityEditor {
+impl <'a> Into<Entity> for EntityEditor<'a> {
     fn into(self) -> Entity {
         self.ent
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_add() {
+        struct A;
+
+        let mut comps = Vec::new();
+        {
+            let mut editor = EntityEditor::new(1, &mut comps);
+            editor.add(A);
+        }
+        
+        assert_eq!(comps.len(), 1);
     }
 }

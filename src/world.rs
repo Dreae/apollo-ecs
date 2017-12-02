@@ -1,13 +1,9 @@
-use std::sync::{Mutex, RwLock, Arc};
-use std::collections::VecDeque;
-
 use super::Entity;
 use super::entities::{EntityEditor, Components};
-use super::query::QueryBuilder;
+use super::query::{QueryBuilder, QueryRunner};
 
 pub struct World {
-    entities: RwLock<Vec<Components>>,
-    free_ents: Mutex<VecDeque<usize>>
+    pub(crate) entities: Vec<Components>,
 }
 
 impl World {
@@ -17,38 +13,25 @@ impl World {
 
     pub fn with_capacity(capacity: usize) -> World {
         World {
-            entities: RwLock::new(Vec::with_capacity(capacity)),
-            free_ents: Mutex::new(VecDeque::with_capacity(capacity / 3)),
+            entities: Vec::with_capacity(capacity),
         }
     }
 
-    pub fn create_entity(&self) -> Entity {
-        let mut free_ents = self.free_ents.lock().unwrap();
-        if free_ents.is_empty() {
-            let mut entities = self.entities.write().unwrap();
-            entities.push(Arc::new(Mutex::new(Vec::with_capacity(12))));
+    pub fn create_entity(&mut self) -> Entity {
+        self.entities.push(Vec::with_capacity(12));
 
-            entities.len() - 1
-        } else {
-            let ent = free_ents.pop_front().unwrap();
-            let ents = self.entities.read().unwrap();
-
-            ents.get(ent).unwrap().lock().unwrap().truncate(0);
-
-            ent
-        }
+        self.entities.len() - 1
     }
 
-    pub fn edit(&self, ent: Entity) -> Option<EntityEditor> {
-        let entities = self.entities.read().unwrap();
-        if let Some(components) = entities.get(ent) {
-            Some(EntityEditor::new(ent, components.clone()))
+    pub fn edit(&mut self, ent: Entity) -> Option<EntityEditor> {
+        if let Some(components) = self.entities.get_mut(ent) {
+            Some(EntityEditor::new(ent, components))
         } else {
             None
         }
     }
 
-    pub fn filter_entities(&self) -> QueryBuilder {
-        QueryBuilder::new(self)
+    pub fn filter_entities(&mut self, builder: QueryBuilder) -> QueryRunner {
+        QueryRunner::new(self, builder.build())
     }
 }

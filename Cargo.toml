@@ -4,7 +4,8 @@ version = "0.1.0"
 authors = ["Dreae <dreae@dreae.onl>"]
 
 [dependencies]
-
+cpuprofiler = { version = "0.0.3", optional = true }
 
 [features]
 nightly = []
+profiler = ["cpuprofiler"]
