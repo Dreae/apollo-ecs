@@ -108,3 +108,27 @@ impl World {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    
+    #[test]
+    fn test_create_entity() {
+        let mut world = World::new();
+        world.create_entity();
+
+        assert_eq!(world.entities.len(), 1);
+    }
+    
+    #[test]
+    fn test_remove_entity() {
+        let mut world = World::new();
+        let ent = world.create_entity();
+
+        assert_eq!(world.entities.len(), 1);
+
+        world.drop_entity(ent);
+        assert_eq!(world.entities.len(), 0);
+    }
+}
