@@ -2,10 +2,12 @@ use super::Entity;
 use super::entities::{EntityEditor, Components};
 use super::query::{Query, QueryRunner};
 use super::systems::IterativeSystem;
+
 use std::ops::DerefMut;
+use std::cell::RefCell;
 
 pub struct World {
-    pub(crate) entities: Vec<Components>,
+    pub(crate) entities: Vec<RefCell<Components>>,
     iterative_systems: Vec<(Box<IterativeSystem>, Query)>
 }
 
@@ -66,7 +68,7 @@ impl World {
 
     /// Allocates space for a new entity and returns its ID
     pub fn create_entity(&mut self) -> Entity {
-        self.entities.push(Vec::with_capacity(12));
+        self.entities.push(RefCell::new(Vec::with_capacity(12)));
 
         self.entities.len() - 1
     }
@@ -75,7 +77,7 @@ impl World {
     pub fn drop_entity(&mut self, ent: Entity) {
         if ent < self.entities.len() {
             let components = self.entities.remove(ent);
-            for comp in components {
+            for comp in components.borrow().iter() {
                 unsafe {
                     // Drop component memory
                     Box::from_raw(comp.1);
@@ -95,15 +97,15 @@ impl World {
 
     /// Filter all entities that match the provided query, and return an iterator
     /// to them.
-    pub fn filter_entities<'a, 'q>(&'a mut self, query: &'q Query) -> QueryRunner<'q> {
-        QueryRunner::new(self.entities.as_ptr(), self.entities.len(), query)
+    pub fn filter_entities<'a, 'q>(&'a mut self, query: &'q Query) -> QueryRunner<'a, 'q> {
+        QueryRunner::new(&self.entities, query)
     }
 
     /// The main loop for a world. Calling `process` runs all ready systems in this world.
     pub fn process(&mut self) {
         for sys in self.iterative_systems.iter_mut() {
-            for ent in QueryRunner::new(self.entities.as_ptr(), self.entities.len(), &sys.1) {
-                sys.0.deref_mut().process(EntityEditor::new(ent, self.entities.get_mut(ent).unwrap()));
+            for ent in QueryRunner::new(&self.entities, &sys.1) {
+                sys.0.deref_mut().process(EntityEditor::new(ent, self.entities.get(ent).unwrap()));
             }
         }
     }

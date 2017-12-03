@@ -1,9 +1,10 @@
 use super::Entity;
-use super::entities::Component;
+use super::entities::{Component, Components};
 use std::any::{Any, TypeId};
+use std::cell::RefCell;
 
 pub trait Condition {
-    fn test(&self, components: &[Component]) -> bool; 
+    fn test(&self, components: &RefCell<Vec<Component>>) -> bool; 
 }
 
 pub struct Matchers;
@@ -131,51 +132,45 @@ impl Into<Box<Condition>> for QueryBuilder {
     }
 }
 
-pub struct QueryRunner<'query> {
-    ents: *const Vec<Component>,
+pub struct QueryRunner<'world, 'query> {
+    ents: &'world Vec<RefCell<Components>>,
     query: &'query Query,
-    len: usize
 }
 
-impl <'query> QueryRunner<'query> {
-    pub fn new(ents: *const Vec<Component>, len: usize, query: &'query Query) -> QueryRunner<'query> {
+impl <'world, 'query> QueryRunner<'world, 'query> {
+    pub fn new(ents: &'world Vec<RefCell<Components>>, query: &'query Query) -> QueryRunner<'world, 'query> {
         QueryRunner {
             ents,
             query,
-            len
         }
     }
 }
 
-impl <'query> IntoIterator for QueryRunner<'query> {
+impl <'world, 'query> IntoIterator for QueryRunner<'world, 'query> {
     type Item = Entity;
-    type IntoIter = QueryRunnerIter<'query>;
+    type IntoIter = QueryRunnerIter<'world, 'query>;
 
     fn into_iter(self) -> Self::IntoIter {
         let ents = self.ents;
         QueryRunnerIter {
             query: self.query,
-            len: self.len,
             ents: ents,
             index: 0
         }
     }
 }
 
-pub struct QueryRunnerIter<'query> {
-    ents: *const Vec<Component>,
+pub struct QueryRunnerIter<'world, 'query> {
+    ents: &'world Vec<RefCell<Components>>,
     query: &'query Query,
-    len: usize,
     index: usize
 }
 
-impl <'query> Iterator for QueryRunnerIter<'query> {
+impl <'world, 'query> Iterator for QueryRunnerIter<'world, 'query> {
     type Item = Entity;
     fn next(&mut self) -> Option<Self::Item> {
-        for idx in self.index..self.len {
-            let components = unsafe { &*self.ents.offset(idx as isize) };
-
-            if self.query.test(components) {
+        for idx in self.index..self.ents.len() {
+            if self.query.test(self.ents.get(idx).unwrap()) {
                 self.index = idx + 1;
 
                 return Some(idx)
@@ -200,7 +195,7 @@ impl Query {
 }
 
 impl Condition for Query {
-    fn test(&self, components: &[Component]) -> bool {
+    fn test(&self, components: &RefCell<Vec<Component>>) -> bool {
         for condition in self.conditions.iter() {
             if !condition.test(components) {
                 return false;
@@ -234,8 +229,8 @@ struct NotCondition {
 }
 
 impl Condition for IsCondition {
-    fn test(&self, components: &[Component]) -> bool {
-        for &(ty, _) in components.iter() {
+    fn test(&self, components: &RefCell<Vec<Component>>) -> bool {
+        for &(ty, _) in components.borrow().iter() {
             if ty == self.ty {
                 return true;
             }
@@ -246,8 +241,8 @@ impl Condition for IsCondition {
 }
 
 impl Condition for IsNotCondition {
-    fn test(&self, components: &[Component]) -> bool {
-        for &(ty, _) in components.iter() {
+    fn test(&self, components: &RefCell<Vec<Component>>) -> bool {
+        for &(ty, _) in components.borrow().iter() {
             if ty == self.ty {
                 return false;
             }
@@ -258,19 +253,19 @@ impl Condition for IsNotCondition {
 }
 
 impl Condition for AndCondition {
-    fn test(&self, components: &[Component]) -> bool {
+    fn test(&self, components: &RefCell<Vec<Component>>) -> bool {
         self.left.test(components) && self.right.test(components)
     }
 }
 
 impl Condition for OrCondition {
-    fn test(&self, components: &[Component]) -> bool {
+    fn test(&self, components: &RefCell<Vec<Component>>) -> bool {
         self.left.test(components) || self.right.test(components)
     }
 }
 
 impl Condition for NotCondition {
-    fn test(&self, components: &[Component]) -> bool {
+    fn test(&self, components: &RefCell<Vec<Component>>) -> bool {
         !self.cond.test(components)
     }
 }
@@ -286,8 +281,8 @@ mod tests {
         
         let query = Matchers::with::<A>().with::<B>().build();
 
-        assert!(query.test(&vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any))));
-        assert_eq!(query.test(&vec!((TypeId::of::<A>(), &mut 1 as *mut Any))), false);
+        assert!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any)))));
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any)))), false);
     }
 
     #[test]
@@ -298,9 +293,9 @@ mod tests {
         
         let query = Matchers::without::<A>().and_not(Matchers::with::<B>()).build();
 
-        assert_eq!(query.test(&vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any))), false);
-        assert_eq!(query.test(&vec!((TypeId::of::<A>(), &mut 1 as *mut Any))), false);
-        assert_eq!(query.test(&vec!((TypeId::of::<C>(), &mut 1 as *mut Any))), true);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any)))), false);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any)))), false);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<C>(), &mut 1 as *mut Any)))), true);
     }
 
     #[test]
@@ -311,9 +306,9 @@ mod tests {
         
         let query = Matchers::with::<A>().without::<B>().build();
 
-        assert_eq!(query.test(&vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any))), false);
-        assert_eq!(query.test(&vec!((TypeId::of::<A>(), &mut 1 as *mut Any))), true);
-        assert_eq!(query.test(&vec!((TypeId::of::<C>(), &mut 1 as *mut Any))), false);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any)))), false);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any)))), true);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<C>(), &mut 1 as *mut Any)))), false);
     }
 
     #[test]
@@ -323,14 +318,14 @@ mod tests {
         struct C;
         
         let query = Matchers::with::<A>().or(Matchers::with::<B>()).build();
-        assert_eq!(query.test(&vec!((TypeId::of::<A>(), &mut 1 as *mut Any))), true);
-        assert_eq!(query.test(&vec!((TypeId::of::<B>(), &mut 1 as *mut Any))), true);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any)))), true);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<B>(), &mut 1 as *mut Any)))), true);
 
         let query = Matchers::with::<A>().without::<B>().or(Matchers::with::<C>()).build();
 
-        assert_eq!(query.test(&vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any))), false);
-        assert_eq!(query.test(&vec!((TypeId::of::<A>(), &mut 1 as *mut Any))), true);
-        assert_eq!(query.test(&vec!((TypeId::of::<C>(), &mut 1 as *mut Any))), true);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any)))), false);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any)))), true);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<C>(), &mut 1 as *mut Any)))), true);
     }
 }
 
@@ -352,7 +347,7 @@ mod benches {
         let query = Matchers::with::<A>().without::<B>().or(Matchers::with::<C>()).build();
         
         b.iter(|| {
-            query.test(&vec!((TypeId::of::<A>(), &mut test::black_box(1) as *mut Any), (TypeId::of::<B>(), &mut test::black_box(2) as *mut Any)));
+            query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut test::black_box(1) as *mut Any), (TypeId::of::<B>(), &mut test::black_box(2) as *mut Any))));
         });
     }
 
@@ -364,7 +359,7 @@ mod benches {
         let query = Matchers::with::<A>().build();
 
         b.iter(|| {
-            query.test(&vec!((TypeId::of::<A>(), &mut test::black_box(1) as *mut Any), (TypeId::of::<B>(), &mut test::black_box(2) as *mut Any)));
+            query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut test::black_box(1) as *mut Any), (TypeId::of::<B>(), &mut test::black_box(2) as *mut Any))));
         });
     }
 
@@ -378,7 +373,7 @@ mod benches {
         let query = Matchers::with::<A>().with::<B>().with::<C>().without::<D>().build();
 
         b.iter(|| {
-            query.test(&vec!((TypeId::of::<A>(), &mut test::black_box(1) as *mut Any), (TypeId::of::<B>(), &mut test::black_box(2) as *mut Any), (TypeId::of::<C>(), &mut test::black_box(3) as *mut Any)));
+            query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut test::black_box(1) as *mut Any), (TypeId::of::<B>(), &mut test::black_box(2) as *mut Any), (TypeId::of::<C>(), &mut test::black_box(3) as *mut Any))));
         });
     }
 }
