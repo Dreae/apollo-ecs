@@ -10,6 +10,11 @@ pub trait Condition {
 pub struct Matchers;
 
 impl Matchers {
+    /// Special matcher that returns true for all entities.
+    pub fn any() -> QueryBuilder {
+        QueryBuilder::new().any()
+    }
+
     /// Tests whether an entity has a component of type `T`
     pub fn with<T>() -> QueryBuilder where T: Any {
         QueryBuilder::new().with::<T>()
@@ -54,6 +59,12 @@ impl <'a> QueryBuilder {
         QueryBuilder {
             conditions: Vec::new()
         }
+    }
+
+    pub fn any(mut self) -> QueryBuilder {
+        self.conditions.push(Box::new(AnyCondition));
+
+        self
     }
 
     /// Identical to [`Matchers.with`](struct.Matchers.html#method.with)
@@ -206,6 +217,8 @@ impl Condition for Query {
     }
 }
 
+struct AnyCondition;
+
 struct IsCondition {
     ty: TypeId
 }
@@ -226,6 +239,12 @@ struct OrCondition {
 
 struct NotCondition {
     cond: Box<Condition>
+}
+
+impl Condition for AnyCondition {
+    fn test(&self, _components: &RefCell<Vec<Component>>) -> bool {
+        true
+    }
 }
 
 impl Condition for IsCondition {
@@ -283,6 +302,18 @@ mod tests {
 
         assert!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any)))));
         assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any)))), false);
+    }
+
+    #[test]
+    fn test_any() {
+        struct A;
+        struct B;
+
+        let query = Matchers::any().build();
+
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any), (TypeId::of::<B>(), &mut 2 as *mut Any)))), true);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<A>(), &mut 1 as *mut Any)))), true);
+        assert_eq!(query.test(&RefCell::new(vec!((TypeId::of::<B>(), &mut 1 as *mut Any)))), true);
     }
 
     #[test]
