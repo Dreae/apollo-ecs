@@ -144,12 +144,12 @@ impl Into<Box<Condition>> for QueryBuilder {
 }
 
 pub struct QueryRunner<'world, 'query> {
-    ents: &'world Vec<RefCell<Components>>,
+    ents: &'world Vec<(bool, RefCell<Components>)>,
     query: &'query Query,
 }
 
 impl <'world, 'query> QueryRunner<'world, 'query> {
-    pub fn new(ents: &'world Vec<RefCell<Components>>, query: &'query Query) -> QueryRunner<'world, 'query> {
+    pub fn new(ents: &'world Vec<(bool, RefCell<Components>)>, query: &'query Query) -> QueryRunner<'world, 'query> {
         QueryRunner {
             ents,
             query,
@@ -172,7 +172,7 @@ impl <'world, 'query> IntoIterator for QueryRunner<'world, 'query> {
 }
 
 pub struct QueryRunnerIter<'world, 'query> {
-    ents: &'world Vec<RefCell<Components>>,
+    ents: &'world Vec<(bool, RefCell<Components>)>,
     query: &'query Query,
     index: usize
 }
@@ -181,7 +181,12 @@ impl <'world, 'query> Iterator for QueryRunnerIter<'world, 'query> {
     type Item = Entity;
     fn next(&mut self) -> Option<Self::Item> {
         for idx in self.index..self.ents.len() {
-            if self.query.test(self.ents.get(idx).unwrap()) {
+            let ent = self.ents.get(idx).unwrap();
+            if ent.0 {
+                continue;
+            }
+
+            if self.query.test(&self.ents.get(idx).unwrap().1) {
                 self.index = idx + 1;
 
                 return Some(idx)

@@ -5,10 +5,12 @@ use super::systems::IterativeSystem;
 
 use std::ops::DerefMut;
 use std::cell::RefCell;
+use std::collections::VecDeque;
 
 pub struct World {
-    pub(crate) entities: Vec<RefCell<Components>>,
-    iterative_systems: Vec<(Box<IterativeSystem>, Query)>
+    pub(crate) entities: Vec<(bool, RefCell<Components>)>,
+    iterative_systems: Vec<(Box<IterativeSystem>, Query)>,
+    free_ents: VecDeque<Entity>
 }
 
 impl World {
@@ -21,7 +23,8 @@ impl World {
     pub fn with_capacity(capacity: usize) -> World {
         World {
             entities: Vec::with_capacity(capacity),
-            iterative_systems: Vec::new()
+            iterative_systems: Vec::new(),
+            free_ents: VecDeque::with_capacity(capacity / 3)
         }
     }
 
@@ -68,28 +71,45 @@ impl World {
 
     /// Allocates space for a new entity and returns its ID
     pub fn create_entity(&mut self) -> Entity {
-        self.entities.push(RefCell::new(Vec::with_capacity(12)));
+        if self.free_ents.len() > 0 {
+            let ent = self.free_ents.pop_front().unwrap();
+            let e = self.entities.get_mut(ent).unwrap();
+            e.1.borrow_mut().truncate(0);
+            e.0 = false;
 
-        self.entities.len() - 1
+            ent
+        } else {
+            self.entities.push((false, RefCell::new(Vec::with_capacity(12))));
+
+            self.entities.len() - 1
+        }
     }
 
     /// Removes an entity from the world and cleans up its components
     pub fn drop_entity(&mut self, ent: Entity) {
         if ent < self.entities.len() {
-            let components = self.entities.remove(ent);
-            for comp in components.borrow().iter() {
+            let e = self.entities.get_mut(ent).unwrap();
+            for comp in e.1.borrow().iter() {
                 unsafe {
                     // Drop component memory
                     Box::from_raw(comp.1);
                 }
             }
+
+            e.0 = true;
+
+            self.free_ents.push_back(ent);
         }
     }
 
     /// Edit an entity `ent`, if it exists.
     pub fn edit(&mut self, ent: Entity) -> Option<EntityEditor> {
-        if let Some(components) = self.entities.get_mut(ent) {
-            Some(EntityEditor::new(ent, components))
+        if let Some(e) = self.entities.get(ent) {
+            if e.0 {
+                None
+            } else {
+                Some(EntityEditor::new(ent, &e.1))
+            }
         } else {
             None
         }
@@ -105,7 +125,7 @@ impl World {
     pub fn process(&mut self) {
         for sys in self.iterative_systems.iter_mut() {
             for ent in QueryRunner::new(&self.entities, &sys.1) {
-                sys.0.deref_mut().process(EntityEditor::new(ent, self.entities.get(ent).unwrap()));
+                sys.0.deref_mut().process(EntityEditor::new(ent, &self.entities.get(ent).unwrap().1));
             }
         }
     }
@@ -131,6 +151,8 @@ mod test {
         assert_eq!(world.entities.len(), 1);
 
         world.drop_entity(ent);
-        assert_eq!(world.entities.len(), 0);
+        assert!(world.edit(ent).is_none());
+        assert_eq!(world.entities.len(), 1);
+        assert_eq!(world.entities.get(ent).unwrap().0, true);
     }
 }
