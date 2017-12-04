@@ -1,4 +1,4 @@
-use super::{EntityEditor, EntityQuery};
+use super::{EntityEditor, EntityQuery, World};
 
 pub trait IterativeSystem {
     /// Static method to return the query that will be used
@@ -10,5 +10,5 @@ pub trait IterativeSystem {
     /// The main loop for this system, `process` is called
     /// for every entity that matches this system's query
     /// on every world tick.
-    fn process(&mut self, ent: EntityEditor);
+    fn process(&mut self, ent: &EntityEditor, world: &World);
 }

@@ -1,15 +1,14 @@
 use super::Entity;
 use super::entities::{EntityEditor, Components};
-use super::query::{Query, QueryRunner};
+use super::query::{Query, QueryRunner, Condition};
 use super::systems::IterativeSystem;
 
-use std::ops::DerefMut;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
 pub struct World {
     pub(crate) entities: Vec<(bool, RefCell<Components>)>,
-    iterative_systems: Vec<(Box<IterativeSystem>, Query)>,
+    iterative_systems: Vec<(RefCell<Box<IterativeSystem>>, Query)>,
     free_ents: VecDeque<Entity>
 }
 
@@ -54,7 +53,7 @@ impl World {
     ///         EntityQuery::new(Matchers::with::<Phys>().without::<Disabled>())
     ///     }
     /// 
-    ///     fn process(&mut self, ent: EntityEditor) {
+    ///     fn process(&mut self, ent: &EntityEditor, world: &World) {
     ///         let phys = ent.get::<Phys>().unwrap();
     ///         // Do something with phys here.
     ///     }
@@ -66,7 +65,7 @@ impl World {
     /// world.edit(ent).unwrap().add(Phys { mass: 100.0 });
     /// ```
     pub fn register_iterative_system<T>(&mut self, system: T) where T: IterativeSystem + 'static {
-        self.iterative_systems.push((Box::new(system), T::get_query()));
+        self.iterative_systems.push((RefCell::new(Box::new(system)), T::get_query()));
     } 
 
     /// Allocates space for a new entity and returns its ID
@@ -103,7 +102,7 @@ impl World {
     }
 
     /// Edit an entity `ent`, if it exists.
-    pub fn edit(&mut self, ent: Entity) -> Option<EntityEditor> {
+    pub fn edit(&self, ent: Entity) -> Option<EntityEditor> {
         if let Some(e) = self.entities.get(ent) {
             if e.0 {
                 None
@@ -117,15 +116,19 @@ impl World {
 
     /// Filter all entities that match the provided query, and return an iterator
     /// to them.
-    pub fn filter_entities<'a, 'q>(&'a mut self, query: &'q Query) -> QueryRunner<'a, 'q> {
+    pub fn filter_entities<'a, 'q>(&'a self, query: &'q Query) -> QueryRunner<'a, 'q> {
         QueryRunner::new(&self.entities, query)
     }
 
     /// The main loop for a world. Calling `process` runs all ready systems in this world.
     pub fn process(&mut self) {
-        for sys in self.iterative_systems.iter_mut() {
-            for ent in QueryRunner::new(&self.entities, &sys.1) {
-                sys.0.deref_mut().process(EntityEditor::new(ent, &self.entities.get(ent).unwrap().1));
+        for (ent, e) in self.entities.iter().enumerate() {
+            if !e.0 {
+                for sys in self.iterative_systems.iter() {
+                    if sys.1.test(&e.1) {
+                        sys.0.borrow_mut().process(&EntityEditor::new(ent, &e.1), self);
+                    }
+                }
             }
         }
     }

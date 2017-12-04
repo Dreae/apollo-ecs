@@ -22,7 +22,7 @@ impl IterativeSystem for TestSystem1 {
         EntityQuery::new(Matchers::with::<Position>())
     }
 
-    fn process(&mut self, ent: EntityEditor) {
+    fn process(&mut self, ent: &EntityEditor, _world: &World) {
         let pos = ent.get::<Position>().unwrap();
 
         pos.x += 1.0;
@@ -35,7 +35,7 @@ impl IterativeSystem for TestSystem2 {
         EntityQuery::new(Matchers::with::<Position>())
     }
 
-    fn process(&mut self, ent: EntityEditor) {
+    fn process(&mut self, ent: &EntityEditor, _world: &World) {
         let pos = ent.get::<Position>().unwrap();
 
         pos.x -= 1.0;
@@ -48,7 +48,7 @@ impl IterativeSystem for TestSystem3 {
         EntityQuery::new(Matchers::with::<Position>())
     }
 
-    fn process(&mut self, ent: EntityEditor) {
+    fn process(&mut self, ent: &EntityEditor, _world: &World) {
         let pos = ent.get::<Position>().unwrap();
 
         pos.x += 1.0;

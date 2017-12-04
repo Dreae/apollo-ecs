@@ -16,7 +16,7 @@ impl IterativeSystem for TestSystem {
         EntityQuery::new(Matchers::with::<A>().with::<B>().and(Matchers::without::<C>()))
     }
 
-    fn process(&mut self, _ent: EntityEditor) {
+    fn process(&mut self, _ent: &EntityEditor, _world: &World) {
         unsafe {
             MATCHED += 1;
         }
