@@ -9,7 +9,8 @@ use std::collections::VecDeque;
 pub struct World {
     pub(crate) entities: Vec<(bool, RefCell<Components>)>,
     iterative_systems: Vec<(RefCell<Box<IterativeSystem>>, Query)>,
-    free_ents: VecDeque<Entity>
+    free_ents: VecDeque<Entity>,
+    dead_ents: RefCell<VecDeque<Entity>>
 }
 
 impl World {
@@ -23,7 +24,8 @@ impl World {
         World {
             entities: Vec::with_capacity(capacity),
             iterative_systems: Vec::new(),
-            free_ents: VecDeque::with_capacity(capacity / 3)
+            free_ents: VecDeque::with_capacity(capacity / 3),
+            dead_ents: RefCell::new(VecDeque::with_capacity(capacity / 3))
         }
     }
 
@@ -101,6 +103,12 @@ impl World {
         }
     }
 
+    pub fn remove_entity(&self, ent: Entity) {
+        if ent < self.entities.len() {
+            self.dead_ents.borrow_mut().push_back(ent);
+        }
+    }
+
     /// Edit an entity `ent`, if it exists.
     pub fn edit(&self, ent: Entity) -> Option<EntityEditor> {
         if let Some(e) = self.entities.get(ent) {
@@ -131,6 +139,17 @@ impl World {
                 }
             }
         }
+
+        if self.dead_ents.borrow().len() > 0 {
+            loop  {
+                let dead_ent = self.dead_ents.borrow_mut().pop_front();
+                if dead_ent.is_some() {
+                    self.drop_entity(dead_ent.unwrap());
+                } else {
+                    return;
+                }
+            }
+        }
     }
 }
 
@@ -147,13 +166,27 @@ mod test {
     }
     
     #[test]
-    fn test_remove_entity() {
+    fn test_drop_entity() {
         let mut world = World::new();
         let ent = world.create_entity();
 
         assert_eq!(world.entities.len(), 1);
 
         world.drop_entity(ent);
+        assert!(world.edit(ent).is_none());
+        assert_eq!(world.entities.len(), 1);
+        assert_eq!(world.entities.get(ent).unwrap().0, true);
+    }
+
+    #[test]
+    fn test_remove_entity() {
+        let mut world = World::new();
+        let ent = world.create_entity();
+
+        assert_eq!(world.entities.len(), 1);
+
+        world.remove_entity(ent);
+        world.process();
         assert!(world.edit(ent).is_none());
         assert_eq!(world.entities.len(), 1);
         assert_eq!(world.entities.get(ent).unwrap().0, true);
