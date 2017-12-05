@@ -7,6 +7,7 @@ pub trait Condition {
     fn test(&self, components: &RefCell<Vec<Component>>) -> bool; 
 }
 
+/// Contains static methods for building entity queries.
 pub struct Matchers;
 
 impl Matchers {

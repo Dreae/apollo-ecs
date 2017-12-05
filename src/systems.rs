@@ -1,5 +1,7 @@
 use super::{EntityEditor, EntityQuery, World};
 
+/// An `IterativeSystem` iterates over all entities matching its
+/// provided `EntityQuery` on every world tick.
 pub trait IterativeSystem {
     /// Static method to return the query that will be used
     /// to filter the world's entities before they are passed

@@ -5,6 +5,7 @@ use std::cell::RefCell;
 pub type Components = Vec<Component>;
 pub type Component = (TypeId, *mut Any);
 
+/// Represents an editable view of an entity's components
 pub struct EntityEditor<'a> {
     ent: Entity,
     components: &'a RefCell<Components>

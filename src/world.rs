@@ -6,6 +6,8 @@ use super::systems::IterativeSystem;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 
+/// The world contains all entities and their components and delegates
+/// their processing to systems.
 pub struct World {
     pub(crate) entities: Vec<(bool, RefCell<Components>)>,
     iterative_systems: Vec<(RefCell<Box<IterativeSystem>>, Query)>,

@@ -50,8 +50,12 @@
 mod world;
 mod entities;
 mod query;
+
+/// Contains traits for implementing various modes of entity processing
+/// in systems
 pub mod systems;
 
+/// An entity's ID
 pub type Entity = usize;
 
 pub use world::World;
