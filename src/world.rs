@@ -103,6 +103,7 @@ impl World {
         }
     }
 
+    /// Schedules an entity to be removed from the world on the next tick
     pub fn remove_entity(&self, ent: Entity) {
         if ent < self.entities.len() {
             self.dead_ents.borrow_mut().push_back(ent);

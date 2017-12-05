@@ -40,7 +40,7 @@ impl <'a> EntityEditor<'a> {
         for &(comp_ty, ptr) in self.components.borrow().iter() {
             if comp_ty == ty {
                 unsafe {
-                    return (*ptr).downcast_mut();
+                    return Some(&mut *(ptr as *mut T));
                 }
             }
         }

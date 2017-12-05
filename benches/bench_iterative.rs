@@ -2,9 +2,17 @@
 #![feature(test)]
 
 extern crate test;
+
+#[cfg(feature = "profiler")]
+extern crate cpuprofiler;
+#[cfg(feature = "profiler")]
+use cpuprofiler::PROFILER;
+
 extern crate apollo_ecs;
 
 use test::Bencher;
+
+
 use apollo_ecs::*;
 use apollo_ecs::systems::IterativeSystem;
 
@@ -72,7 +80,16 @@ fn bench_16384_ents(b: &mut Bencher) {
         });
     }
 
+    #[cfg(feature = "profiler")]
+    {
+        PROFILER.lock().unwrap().start("bench_16384.prof").unwrap();
+    }
     b.iter(|| {
         world.process()
     });
+
+    #[cfg(feature = "profiler")]
+    {
+        PROFILER.lock().unwrap().stop().unwrap();
+    }
 }
