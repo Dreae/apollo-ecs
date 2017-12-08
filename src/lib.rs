@@ -50,6 +50,7 @@
 mod world;
 mod entities;
 mod query;
+mod bitvec;
 
 /// Contains traits for implementing various modes of entity processing
 /// in systems

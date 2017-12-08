@@ -1,6 +1,6 @@
 use super::Entity;
 use super::entities::{EntityEditor, Components};
-use super::query::{Query, QueryRunner, Condition};
+use super::query::{Query, Condition};
 use super::systems::IterativeSystem;
 
 use std::cell::RefCell;
@@ -9,7 +9,8 @@ use std::collections::VecDeque;
 /// The world contains all entities and their components and delegates
 /// their processing to systems.
 pub struct World {
-    pub(crate) entities: Vec<(bool, RefCell<Components>)>,
+    pub(crate) entities: Vec<RefCell<Components>>,
+    valid_ents: Vec<bool>,
     iterative_systems: Vec<(RefCell<Box<IterativeSystem>>, Query)>,
     free_ents: VecDeque<Entity>,
     dead_ents: RefCell<VecDeque<Entity>>
@@ -27,7 +28,8 @@ impl World {
             entities: Vec::with_capacity(capacity),
             iterative_systems: Vec::new(),
             free_ents: VecDeque::with_capacity(capacity / 3),
-            dead_ents: RefCell::new(VecDeque::with_capacity(capacity / 3))
+            dead_ents: RefCell::new(VecDeque::with_capacity(capacity / 3)),
+            valid_ents: vec![false; capacity]
         }
     }
 
@@ -77,14 +79,16 @@ impl World {
         if self.free_ents.len() > 0 {
             let ent = self.free_ents.pop_front().unwrap();
             let e = self.entities.get_mut(ent).unwrap();
-            e.1.borrow_mut().truncate(0);
-            e.0 = false;
+            e.borrow_mut().truncate(0);
+            self.valid_ents[ent] = false;
 
             ent
         } else {
-            self.entities.push((false, RefCell::new(Vec::with_capacity(12))));
+            let ent = self.entities.len();
+            self.entities.push(RefCell::new(Vec::with_capacity(12)));
+            self.valid_ents[ent] = true;
 
-            self.entities.len() - 1
+            ent
         }
     }
 
@@ -92,14 +96,14 @@ impl World {
     pub fn drop_entity(&mut self, ent: Entity) {
         if ent < self.entities.len() {
             let e = self.entities.get_mut(ent).unwrap();
-            for comp in e.1.borrow().iter() {
+            for comp in e.borrow().iter() {
                 unsafe {
                     // Drop component memory
                     Box::from_raw(comp.1);
                 }
             }
 
-            e.0 = true;
+            self.valid_ents[ent] = false;
 
             self.free_ents.push_back(ent);
         }
@@ -114,30 +118,20 @@ impl World {
 
     /// Edit an entity `ent`, if it exists.
     pub fn edit(&self, ent: Entity) -> Option<EntityEditor> {
-        if let Some(e) = self.entities.get(ent) {
-            if e.0 {
-                None
-            } else {
-                Some(EntityEditor::new(ent, &e.1))
-            }
-        } else {
+        if Some(&false) == self.valid_ents.get(ent) {
             None
+        } else {
+            Some(EntityEditor::new(ent, &self.entities[ent]))
         }
-    }
-
-    /// Filter all entities that match the provided query, and return an iterator
-    /// to them.
-    pub fn filter_entities<'a, 'q>(&'a self, query: &'q Query) -> QueryRunner<'a, 'q> {
-        QueryRunner::new(&self.entities, query)
     }
 
     /// The main loop for a world. Calling `process` runs all ready systems in this world.
     pub fn process(&mut self) {
         for (ent, e) in self.entities.iter().enumerate() {
-            if !e.0 {
+            if self.valid_ents[ent] {
                 for sys in self.iterative_systems.iter() {
-                    if sys.1.test(&e.1) {
-                        sys.0.borrow_mut().process(&EntityEditor::new(ent, &e.1), self);
+                    if sys.1.test(&e) {
+                        sys.0.borrow_mut().process(&EntityEditor::new(ent, &e), self);
                     }
                 }
             }
@@ -178,7 +172,7 @@ mod test {
         world.drop_entity(ent);
         assert!(world.edit(ent).is_none());
         assert_eq!(world.entities.len(), 1);
-        assert_eq!(world.entities.get(ent).unwrap().0, true);
+        assert_eq!(world.valid_ents[ent], false);
     }
 
     #[test]
@@ -192,6 +186,6 @@ mod test {
         world.process();
         assert!(world.edit(ent).is_none());
         assert_eq!(world.entities.len(), 1);
-        assert_eq!(world.entities.get(ent).unwrap().0, true);
+        assert_eq!(world.valid_ents[ent], false);
     }
 }

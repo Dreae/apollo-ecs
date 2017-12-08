@@ -1,5 +1,4 @@
-use super::Entity;
-use super::entities::{Component, Components};
+use super::entities::Component;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 
@@ -141,61 +140,6 @@ impl <'a> QueryBuilder {
 impl Into<Box<Condition>> for QueryBuilder {
     fn into(self) -> Box<Condition> {
         Box::new(self.build())
-    }
-}
-
-pub struct QueryRunner<'world, 'query> {
-    ents: &'world Vec<(bool, RefCell<Components>)>,
-    query: &'query Query,
-}
-
-impl <'world, 'query> QueryRunner<'world, 'query> {
-    pub fn new(ents: &'world Vec<(bool, RefCell<Components>)>, query: &'query Query) -> QueryRunner<'world, 'query> {
-        QueryRunner {
-            ents,
-            query,
-        }
-    }
-}
-
-impl <'world, 'query> IntoIterator for QueryRunner<'world, 'query> {
-    type Item = Entity;
-    type IntoIter = QueryRunnerIter<'world, 'query>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let ents = self.ents;
-        QueryRunnerIter {
-            query: self.query,
-            ents: ents,
-            index: 0
-        }
-    }
-}
-
-pub struct QueryRunnerIter<'world, 'query> {
-    ents: &'world Vec<(bool, RefCell<Components>)>,
-    query: &'query Query,
-    index: usize
-}
-
-impl <'world, 'query> Iterator for QueryRunnerIter<'world, 'query> {
-    type Item = Entity;
-    fn next(&mut self) -> Option<Self::Item> {
-        for idx in self.index..self.ents.len() {
-            let ent = self.ents.get(idx).unwrap();
-            if ent.0 {
-                continue;
-            }
-
-            if self.query.test(&self.ents.get(idx).unwrap().1) {
-                self.index = idx + 1;
-
-                return Some(idx)
-            }
-            
-        }
-        
-        None
     }
 }
 
