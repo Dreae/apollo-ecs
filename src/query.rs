@@ -1,4 +1,4 @@
-use super::entities::Component;
+use super::world::Component;
 use std::any::{Any, TypeId};
 use std::cell::RefCell;
 

@@ -30,8 +30,8 @@ impl IterativeSystem for TestSystem1 {
         EntityQuery::new(Matchers::with::<Position>())
     }
 
-    fn process(&mut self, ent: &EntityEditor, _world: &World) {
-        let pos = ent.get::<Position>().unwrap();
+    fn process(&mut self, ent: Entity, world: &World) {
+        let pos = world.get_component::<Position>(ent).unwrap();
 
         pos.x += 1.0;
         pos.y -= 1.0;
@@ -43,8 +43,8 @@ impl IterativeSystem for TestSystem2 {
         EntityQuery::new(Matchers::with::<Position>())
     }
 
-    fn process(&mut self, ent: &EntityEditor, _world: &World) {
-        let pos = ent.get::<Position>().unwrap();
+    fn process(&mut self, ent: Entity, world: &World) {
+        let pos = world.get_component::<Position>(ent).unwrap();
 
         pos.x -= 1.0;
         pos.y += 1.0;
@@ -56,8 +56,8 @@ impl IterativeSystem for TestSystem3 {
         EntityQuery::new(Matchers::with::<Position>())
     }
 
-    fn process(&mut self, ent: &EntityEditor, _world: &World) {
-        let pos = ent.get::<Position>().unwrap();
+    fn process(&mut self, ent: Entity, world: &World) {
+        let pos = world.get_component::<Position>(ent).unwrap();
 
         pos.x += 1.0;
         pos.y -= 1.0;
@@ -74,7 +74,7 @@ fn bench_16384_ents(b: &mut Bencher) {
     for _ in 0..16384 {
         let ent = world.create_entity();
         
-        world.edit(ent).unwrap().add(Position {
+        world.add_component(ent, Position {
             x: 0.0,
             y: 0.0
         });

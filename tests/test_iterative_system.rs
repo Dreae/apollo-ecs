@@ -1,6 +1,6 @@
 extern crate apollo_ecs;
 
-use apollo_ecs::{EntityEditor, EntityQuery, World, Matchers};
+use apollo_ecs::{Entity, EntityQuery, World, Matchers};
 use apollo_ecs::systems::IterativeSystem;
 
 struct TestSystem;
@@ -16,7 +16,7 @@ impl IterativeSystem for TestSystem {
         EntityQuery::new(Matchers::with::<A>().with::<B>().and(Matchers::without::<C>()))
     }
 
-    fn process(&mut self, _ent: &EntityEditor, _world: &World) {
+    fn process(&mut self, _ent: Entity, _world: &World) {
         unsafe {
             MATCHED += 1;
         }
@@ -29,21 +29,21 @@ fn test_iterative_system() {
     world.register_iterative_system(TestSystem);
     
     let ent = world.create_entity();
-    world.edit(ent).unwrap().add(A);
-    world.edit(ent).unwrap().add(B);
+    world.add_component(ent, A);
+    world.add_component(ent, B);
     
     let ent = world.create_entity();
-    world.edit(ent).unwrap().add(A);
-    world.edit(ent).unwrap().add(B);
+    world.add_component(ent, A);
+    world.add_component(ent, B);
     
     let ent = world.create_entity();
-    world.edit(ent).unwrap().add(A);
-    world.edit(ent).unwrap().add(B);
-    world.edit(ent).unwrap().add(C);
+    world.add_component(ent, A);
+    world.add_component(ent, B);
+    world.add_component(ent, C);
     
     let ent = world.create_entity();
-    world.edit(ent).unwrap().add(A);
-    world.edit(ent).unwrap().add(B);
+    world.add_component(ent, A);
+    world.add_component(ent, B);
 
     world.process();
 

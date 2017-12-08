@@ -27,8 +27,8 @@
 //!         EntityQuery::new(Matchers::with::<Phys>().without::<Disabled>())
 //!     }
 //! 
-//!     fn process(&mut self, ent: &EntityEditor, world: &World) {
-//!         let phys = ent.get::<Phys>().unwrap();
+//!     fn process(&mut self, ent: Entity, world: &World) {
+//!         let phys = world.get_component::<Phys>(ent).unwrap();
 //!         // Do something with phys here.
 //!     }
 //! }
@@ -37,7 +37,7 @@
 //!     let mut world = World::new();
 //!     world.register_iterative_system(SimpleSystem::new());
 //!     let ent = world.create_entity();
-//!     world.edit(ent).unwrap().add(Phys { mass: 100.0 });
+//!     world.add_component(ent, Phys { mass: 100.0 });
 //!     
 //!     // Represents the main game loop
 //!     loop { 
@@ -48,7 +48,6 @@
 //! 
 //! To read more about ECS check [here](http://entity-systems.wikidot.com/)
 mod world;
-mod entities;
 mod query;
 mod bitvec;
 
@@ -61,4 +60,3 @@ pub type Entity = usize;
 
 pub use world::World;
 pub use query::{Matchers, Query as EntityQuery};
-pub use entities::EntityEditor;

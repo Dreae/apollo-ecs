@@ -1,10 +1,13 @@
 use super::Entity;
-use super::entities::{EntityEditor, Components};
 use super::query::{Query, Condition};
 use super::systems::IterativeSystem;
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::any::{Any, TypeId};
+
+pub type Components = Vec<Component>;
+pub type Component = (TypeId, *mut Any);
 
 /// The world contains all entities and their components and delegates
 /// their processing to systems.
@@ -59,8 +62,8 @@ impl World {
     ///         EntityQuery::new(Matchers::with::<Phys>().without::<Disabled>())
     ///     }
     /// 
-    ///     fn process(&mut self, ent: &EntityEditor, world: &World) {
-    ///         let phys = ent.get::<Phys>().unwrap();
+    ///     fn process(&mut self, ent: Entity, world: &World) {
+    ///         let phys = world.get_component::<Phys>(ent).unwrap();
     ///         // Do something with phys here.
     ///     }
     /// }
@@ -68,7 +71,7 @@ impl World {
     /// let mut world = World::new();
     /// world.register_iterative_system(SimpleSystem::new());
     /// let ent = world.create_entity();
-    /// world.edit(ent).unwrap().add(Phys { mass: 100.0 });
+    /// world.add_component(ent, Phys { mass: 100.0 });
     /// ```
     pub fn register_iterative_system<T>(&mut self, system: T) where T: IterativeSystem + 'static {
         self.iterative_systems.push((RefCell::new(Box::new(system)), T::get_query()));
@@ -116,12 +119,59 @@ impl World {
         }
     }
 
-    /// Edit an entity `ent`, if it exists.
-    pub fn edit(&self, ent: Entity) -> Option<EntityEditor> {
-        if Some(&false) == self.valid_ents.get(ent) {
-            None
-        } else {
-            Some(EntityEditor::new(ent, &self.entities[ent]))
+    /// Add a component of type `T` to entity `ent` and returns whether or not
+    /// the operation was successful.
+    pub fn add_component<T: Any>(&self, ent: Entity, component: T) -> bool {
+        match self.valid_ents.get(ent) {
+            Some(&true) => {
+                let ty = TypeId::of::<T>();
+                let mut components = self.entities[ent].borrow_mut();
+
+                components.push((ty, Box::into_raw(Box::new(component))));
+                
+                true
+            },
+            _ => false
+        }
+    }
+
+    /// Get the component of type `T` from entity `ent`
+    pub fn get_component<T: Any>(&self, ent: Entity) -> Option<&mut T> {
+        match self.valid_ents.get(ent) {
+            Some(&true) => {
+                let ty = TypeId::of::<T>();
+                let components = &self.entities[ent];
+                for &(comp_ty, ptr) in components.borrow().iter() {
+                    if comp_ty == ty {
+                        unsafe {
+                            return Some(&mut *(ptr as *mut T));
+                        }
+                    }
+                }
+
+                None
+            },
+            _ => None
+        }
+
+    }
+
+    /// Check whether entity `ent` has a component of type `T`
+    pub fn has_component<T: Any>(&self, ent: Entity) -> bool {
+        match self.valid_ents.get(ent) {
+            Some(&true) => {
+                let ty = TypeId::of::<T>();
+                let components = &self.entities[ent];
+                for &(comp_ty, _) in components.borrow().iter() {
+                    if comp_ty == ty {
+                        return true;
+                    }
+                }
+
+                false
+
+            },
+            _ => false
         }
     }
 
@@ -131,7 +181,7 @@ impl World {
             if self.valid_ents[ent] {
                 for sys in self.iterative_systems.iter() {
                     if sys.1.test(&e) {
-                        sys.0.borrow_mut().process(&EntityEditor::new(ent, &e), self);
+                        sys.0.borrow_mut().process(ent, self);
                     }
                 }
             }
@@ -170,7 +220,6 @@ mod test {
         assert_eq!(world.entities.len(), 1);
 
         world.drop_entity(ent);
-        assert!(world.edit(ent).is_none());
         assert_eq!(world.entities.len(), 1);
         assert_eq!(world.valid_ents[ent], false);
     }
@@ -184,7 +233,6 @@ mod test {
 
         world.remove_entity(ent);
         world.process();
-        assert!(world.edit(ent).is_none());
         assert_eq!(world.entities.len(), 1);
         assert_eq!(world.valid_ents[ent], false);
     }

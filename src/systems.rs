@@ -1,4 +1,4 @@
-use super::{EntityEditor, EntityQuery, World};
+use super::{Entity, EntityQuery, World};
 
 /// An `IterativeSystem` iterates over all entities matching its
 /// provided `EntityQuery` on every world tick.
@@ -12,5 +12,5 @@ pub trait IterativeSystem {
     /// The main loop for this system, `process` is called
     /// for every entity that matches this system's query
     /// on every world tick.
-    fn process(&mut self, ent: &EntityEditor, world: &World);
+    fn process(&mut self, ent: Entity, world: &World);
 }
